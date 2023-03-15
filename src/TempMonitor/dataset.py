@@ -94,10 +94,9 @@ class GraphDataset(InMemoryDataset):
         # Extract vertices and faces from mesh
         vertices = mesh.points
         vertices /= 1e3
-        faces = mesh.cells_dict['hexahedron']
+        faces = mesh.cells_dict['hexahedron'].astype(int)
 
         # Create edge index tensor from faces
-        faces = faces.astype(int)
         faces = torch.tensor(faces, dtype=torch.int32).t().contiguous()
         edges = torch.cat([torch.stack([face, torch.roll(face, -1, 0)], dim=1) for face in faces])
         edges = edges.transpose(0, 1).contiguous()
