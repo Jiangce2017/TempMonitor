@@ -3,6 +3,7 @@ import os
 import os.path as osp
 import shutil
 import glob
+import meshio
 
 import torch
 from torch_geometric.data import InMemoryDataset, download_url, extract_zip
@@ -47,11 +48,9 @@ class GraphDataset(InMemoryDataset):
     def __init__(self, root, name='10', train=True, transform=None,
                  pre_transform=None, pre_filter=None):
         self.name = name
-        super(Graph_Dataset, self).__init__(root, transform, pre_transform,
-                                       pre_filter)
+        super(GraphDataset, self).__init__(root, transform, pre_transform, pre_filter)
         path = self.processed_paths[0] if train else self.processed_paths[1]
         self.data, self.slices = torch.load(path)
-
 
     @property
     def raw_file_names(self):
@@ -60,7 +59,6 @@ class GraphDataset(InMemoryDataset):
     @property
     def processed_file_names(self):
         return ['dataset.pt']
-
 
     def process(self):
 
@@ -83,11 +81,32 @@ class GraphDataset(InMemoryDataset):
 
     def __repr__(self):
         return '{}{}({})'.format(self.__class__.__name__, self.name, len(self))
-        
-    def mesh2graph(self,path):
-        #### 
+
+    def mesh2graph(self, path):
+        """
+        Convert the .vtu mesh file to a torch graph instance
+        :param path: mesh file '*.vtu'
+        :return: node_features, edge_index
+        """
+        # load file
+        mesh = meshio.read(path)
+
+        # Extract vertices and faces from mesh
+        vertices = mesh.points
+        vertices /= 1e3
+        faces = mesh.cells_dict['hexahedron']
+
+        # Create edge index tensor from faces
+        faces = faces.astype(int)
+        faces = torch.tensor(faces, dtype=torch.int32).t().contiguous()
+        edges = torch.cat([torch.stack([face, torch.roll(face, -1, 0)], dim=1) for face in faces])
+        edges = edges.transpose(0, 1).contiguous()
+
+        node_features = torch.tensor(vertices, dtype=torch.float)
+        edge_index = edges.long()
+        return node_features, edge_index
         pass
-        
-    def find_boundary_points(self,data):
+
+    def find_boundary_points(self, data):
         ####
         pass
