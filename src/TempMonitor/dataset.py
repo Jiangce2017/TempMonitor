@@ -9,6 +9,7 @@ import torch
 from torch_geometric.data import InMemoryDataset, download_url, extract_zip
 from torch_geometric.data import Data
 
+
 class GraphDataset(InMemoryDataset):
     r"""The ModelNet10/40 datasets from the `"3D ShapeNets: A Deep
     Representation for Volumetric Shapes"
@@ -82,6 +83,25 @@ class GraphDataset(InMemoryDataset):
     def __repr__(self):
         return '{}{}({})'.format(self.__class__.__name__, self.name, len(self))
 
+    def face2edge(self, faces):
+        """
+        Create edge index tensor from hexahedron faces
+        :param faces: a tensor of hexahedron faces (N*8)
+        :return: a tensor of edges (N*2)
+        """
+        edges = torch.cat([torch.stack(
+            [torch.tensor([face[0], face[1]]), torch.tensor([face[0], face[3]]), torch.tensor([face[0], face[4]]),
+             torch.tensor([face[1], face[0]]), torch.tensor([face[1], face[2]]), torch.tensor([face[1], face[5]]),
+             torch.tensor([face[2], face[1]]), torch.tensor([face[2], face[3]]), torch.tensor([face[2], face[6]]),
+             torch.tensor([face[3], face[0]]), torch.tensor([face[3], face[2]]), torch.tensor([face[3], face[7]]),
+             torch.tensor([face[4], face[0]]), torch.tensor([face[4], face[5]]), torch.tensor([face[4], face[7]]),
+             torch.tensor([face[5], face[1]]), torch.tensor([face[5], face[4]]), torch.tensor([face[5], face[6]]),
+             torch.tensor([face[6], face[2]]), torch.tensor([face[6], face[5]]), torch.tensor([face[6], face[7]]),
+             torch.tensor([face[7], face[3]]), torch.tensor([face[7], face[4]]), torch.tensor([face[7], face[6]])])
+            for face in faces])     # 24 edges for a hexahedron cell
+        edges = torch.unique(edges, sorted=False, dim=0)    # an edge may belong to several cells
+        return edges
+
     def mesh2graph(self, path):
         """
         Convert the .vtu mesh file to a torch graph instance
@@ -97,12 +117,12 @@ class GraphDataset(InMemoryDataset):
         faces = mesh.cells_dict['hexahedron'].astype(int)
 
         # Create edge index tensor from faces
-        faces = torch.tensor(faces, dtype=torch.int32).t().contiguous()
-        edges = torch.cat([torch.stack([face, torch.roll(face, -1, 0)], dim=1) for face in faces])
-        edges = edges.transpose(0, 1).contiguous()
+        faces = torch.tensor(faces, dtype=torch.int32).contiguous()
+        edges = self.face2edge(faces)
+        edge_index = edges.transpose(0, 1).contiguous()
 
         node_features = torch.tensor(vertices, dtype=torch.float)
-        edge_index = edges.long()
+        # edge_index = edge_index.long()
         return node_features, edge_index
         pass
 
