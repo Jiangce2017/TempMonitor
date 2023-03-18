@@ -125,7 +125,6 @@ class GraphDataset(InMemoryDataset):
         node_features = torch.tensor(vertices, dtype=torch.float)
         # edge_index = edge_index.long()
         return node_features, edge_index
-        pass
 
     def find_boundary_points(self, data):
         ####
