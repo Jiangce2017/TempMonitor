@@ -99,7 +99,8 @@ class GraphDataset(InMemoryDataset):
              torch.tensor([face[6], face[2]]), torch.tensor([face[6], face[5]]), torch.tensor([face[6], face[7]]),
              torch.tensor([face[7], face[3]]), torch.tensor([face[7], face[4]]), torch.tensor([face[7], face[6]])])
             for face in faces])     # 24 edges for a hexahedron cell
-        edges = torch.unique(edges, sorted=False, dim=0)    # an edge may belong to several cells
+        # an edge may belong to several cells
+        edges = torch.unique(edges, sorted=False, dim=0)
         return edges
 
     def mesh2graph(self, path):
