@@ -91,8 +91,10 @@ class GraphDataset(InMemoryDataset):
         return '{}{}({})'.format(self.__class__.__name__, self.name, len(self))
 
     def cell2graph(self, path, dx, base_depth):
+        # load file
         mesh = meshio.read(path)
 
+        # extract points and cells
         points = mesh.points
         points /= 1e3
         points = torch.from_numpy(points.astype(np.float32))
@@ -104,14 +106,16 @@ class GraphDataset(InMemoryDataset):
 
         # the cells with non-zero temperature are activated cells
         centeroids = torch.mean(points[cells], dim=1)
-        active_mask = (sol_center[:, 0] > 0.1) & (centeroids[:, 2] > 0)  # remove base
+        base_depth = torch.min(centeroids[:, 2])
+        active_mask = (sol_center[:, 0] > 0.1) & (centeroids[:, 2] > base_depth+1e-4)  # remove base
+        centeroids = centeroids[active_mask]
         sol_center = sol_center[active_mask]
 
         cells = cells[active_mask]
 
         centeroids = centeroids[active_mask]
 
-        # convert centeroid to inds (float coordinates to integer coordicate)
+        # convert centeroids to inds (float coordinates to integer coordinates)
         inds = self._coord2inds(centeroids, dx)
         max_inds = torch.max(inds, dim=0).values
         inds_hash = self._grid_hash(inds, max_inds)
