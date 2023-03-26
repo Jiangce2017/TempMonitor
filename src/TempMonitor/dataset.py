@@ -106,8 +106,7 @@ class GraphDataset(InMemoryDataset):
 
         # the cells with non-zero temperature are activated cells
         centeroids = torch.mean(points[cells], dim=1)
-        base_depth = torch.min(centeroids[:, 2])
-        active_mask = (sol_center[:, 0] > 0.1) & (centeroids[:, 2] > base_depth+1e-4)  # remove base
+        active_mask = (sol_center[:, 0] > 0.1) & (centeroids[:, 2] > 0)  # remove base
         sol_center = sol_center[active_mask]
         cells = cells[active_mask]
         centeroids = centeroids[active_mask]
@@ -133,7 +132,7 @@ class GraphDataset(InMemoryDataset):
             end1 = lookup_table[moved_inds_hash]
             mask_act = end1 >= 0
             edg = torch.stack([end0[mask_act], end1[mask_act]], dim=0)
-            print(edg.shape)
+            # print(edg.shape)
             edges.append(edg)
         edges_total = torch.cat(edges, dim=1)
         node_features = torch.cat((centeroids, sol_center), dim=1)
@@ -147,7 +146,9 @@ class GraphDataset(InMemoryDataset):
         """
         nodes = data['x']
         edges = data['edge_index']
-        bottom = torch.min(nodes[:, 2])
+        count = torch.tensor([(edges == i).sum().item() for i in range(len(nodes))])
+        boundary_mask = (count != 6)
+        return boundary_mask
         pass
 
     def _coord2inds(self, points, d):
