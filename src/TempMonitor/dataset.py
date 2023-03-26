@@ -108,11 +108,8 @@ class GraphDataset(InMemoryDataset):
         centeroids = torch.mean(points[cells], dim=1)
         base_depth = torch.min(centeroids[:, 2])
         active_mask = (sol_center[:, 0] > 0.1) & (centeroids[:, 2] > base_depth+1e-4)  # remove base
-        centeroids = centeroids[active_mask]
         sol_center = sol_center[active_mask]
-
         cells = cells[active_mask]
-
         centeroids = centeroids[active_mask]
 
         # convert centeroids to inds (float coordinates to integer coordinates)
@@ -142,8 +139,15 @@ class GraphDataset(InMemoryDataset):
         node_features = torch.cat((centeroids, sol_center), dim=1)
         return node_features, edges_total
 
-    def find_boundary_points(self, data):
-        ####
+    def find_boundary_cells(self, data):
+        """
+        Return a boundary mask (True for boundary cells)
+        :param data: pytorch_geometric
+        :return: boundary_mask
+        """
+        nodes = data['x']
+        edges = data['edge_index']
+        bottom = torch.min(nodes[:, 2])
         pass
 
     def _coord2inds(self, points, d):
