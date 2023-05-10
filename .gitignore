@@ -1,3 +1,7 @@
+# dataset
+test.pt
+training.pt
+
 ### VisualStudioCode template
 .vscode/*
 !.vscode/settings.json

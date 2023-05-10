@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from utilities3 import *
 
+
 class GraphDataset(InMemoryDataset):
     r"""The ModelNet10/40 datasets from the `"3D ShapeNets: A Deep
     Representation for Volumetric Shapes"
@@ -66,7 +67,7 @@ class GraphDataset(InMemoryDataset):
     @property
     def processed_file_names(self):
         return ['training.pt', 'test.pt']
-        
+
     def process(self):
         torch.save(self.process_set('train'), self.processed_paths[0])
         torch.save(self.process_set('test'), self.processed_paths[1])
@@ -84,69 +85,71 @@ class GraphDataset(InMemoryDataset):
             if dataset == 'train':
                 if i_path % 10 != 0:
                     node_features, edge_index = self.cell2graph(path, dx, base_depth)
-                    #node_features_list.append(node_features)
+                    # node_features_list.append(node_features)
                     edge_index_list.append(edge_index)
-                    print("Processed file: {}".format(path))            
-                    boundary_mask = self.find_boundary_cells(node_features,edge_index)
-                    #boundary_mask_list.append(boundary_mask)
-                    #self.plot_graph(node_features[:, :3], edge_index,boundary_mask)
-                    #y_output = node_features[~boundary_mask,3]
-                    y_output = node_features[:,3]
+                    print("Processed file: {}".format(path))
+                    boundary_mask = self.find_boundary_cells(node_features, edge_index)
+                    # boundary_mask_list.append(boundary_mask)
+                    # self.plot_graph(node_features[:, :3], edge_index,boundary_mask)
+                    # y_output = node_features[~boundary_mask,3]
+                    y_output = node_features[:, 3]
                     x_input = node_features.detach().clone()
-                    #mean_temp = torch.mean(x_input[boundary_mask,3])
-                    x_input[~boundary_mask,3] = 0
+                    # mean_temp = torch.mean(x_input[boundary_mask,3])
+                    x_input[~boundary_mask, 3] = 0
                     num_nodes = node_features.shape[0]
                     print("num_nodes: {}".format(num_nodes))
                     print("y_output: {}".format(y_output.shape))
                     edge_index = self.indirect_edges(edge_index)
-                    data = Data(x_input=x_input, edge_index=edge_index, y_output=y_output, boundary_mask= boundary_mask,num_nodes=num_nodes)
+                    data = Data(x_input=x_input, edge_index=edge_index, y_output=y_output, boundary_mask=boundary_mask,
+                                num_nodes=num_nodes)
                     data_list.append(data)
             else:
                 if i_path % 10 == 0:
                     node_features, edge_index = self.cell2graph(path, dx, base_depth)
-                    #node_features_list.append(node_features)
+                    # node_features_list.append(node_features)
                     edge_index_list.append(edge_index)
-                    print("Processed file: {}".format(path))            
-                    boundary_mask = self.find_boundary_cells(node_features,edge_index)
-                    #boundary_mask_list.append(boundary_mask)
-                    #self.plot_graph(node_features[:, :3], edge_index,boundary_mask)
-                    #y_output = node_features[~boundary_mask,3]
-                    y_output = node_features[:,3]
+                    print("Processed file: {}".format(path))
+                    boundary_mask = self.find_boundary_cells(node_features, edge_index)
+                    # boundary_mask_list.append(boundary_mask)
+                    # self.plot_graph(node_features[:, :3], edge_index,boundary_mask)
+                    # y_output = node_features[~boundary_mask,3]
+                    y_output = node_features[:, 3]
                     x_input = node_features.detach().clone()
-                    #mean_temp = torch.mean(x_input[boundary_mask,3])
-                    x_input[~boundary_mask,3] = 0
+                    # mean_temp = torch.mean(x_input[boundary_mask,3])
+                    x_input[~boundary_mask, 3] = 0
                     num_nodes = node_features.shape[0]
                     print("num_nodes: {}".format(num_nodes))
                     print("y_output: {}".format(y_output.shape))
                     edge_index = self.indirect_edges(edge_index)
-                    data = Data(x_input=x_input, edge_index=edge_index, y_output=y_output, boundary_mask= boundary_mask,num_nodes=num_nodes)
+                    data = Data(x_input=x_input, edge_index=edge_index, y_output=y_output, boundary_mask=boundary_mask,
+                                num_nodes=num_nodes)
                     data_list.append(data)
-            
+
         # node_features_arr = torch.cat((node_features_list),dim=0)
         # if self.train:
-            # self.normalizer = UnitGaussianNormalizer(node_features_arr)
+        # self.normalizer = UnitGaussianNormalizer(node_features_arr)
         # for i_data in range(len(node_features_list)):
-            # node_features = node_features_list[i_data]
-            # edge_index = edge_index_list[i_data]
-            # #node_features = self.normalizer.encode(node_features)
-            # boundary_mask = boundary_mask_list[i_data]
-            # y_output = node_features[~boundary_mask,3]
-            # x_input = node_features.detach().clone()
-            # mean_temp = torch.mean(x_input[boundary_mask,3])
-            # x_input[~boundary_mask,3] = mean_temp
-            # num_nodes = node_features.shape[0]
-            # print("num_nodes: {}".format(num_nodes))
-            # print("y_output: {}".format(y_output.shape))
-            # data = Data(x_input=x_input, edge_index=edge_index, y_output=y_output, boundary_mask= boundary_mask,num_nodes=num_nodes)
-            # data_list.append(data)
+        # node_features = node_features_list[i_data]
+        # edge_index = edge_index_list[i_data]
+        # #node_features = self.normalizer.encode(node_features)
+        # boundary_mask = boundary_mask_list[i_data]
+        # y_output = node_features[~boundary_mask,3]
+        # x_input = node_features.detach().clone()
+        # mean_temp = torch.mean(x_input[boundary_mask,3])
+        # x_input[~boundary_mask,3] = mean_temp
+        # num_nodes = node_features.shape[0]
+        # print("num_nodes: {}".format(num_nodes))
+        # print("y_output: {}".format(y_output.shape))
+        # data = Data(x_input=x_input, edge_index=edge_index, y_output=y_output, boundary_mask= boundary_mask,num_nodes=num_nodes)
+        # data_list.append(data)
 
         if self.pre_filter is not None:
             data_list = [d for d in data_list if self.pre_filter(d)]
 
         if self.pre_transform is not None:
             data_list = [self.pre_transform(d) for d in data_list]
-            
-        #if self.normalize is not None:
+
+        # if self.normalize is not None:
         #    pass
 
         return self.collate(data_list)
@@ -189,7 +192,7 @@ class GraphDataset(InMemoryDataset):
         for i_move in range(3):
             moved_inds = inds + moves[i_move]
             mask_in = (moved_inds[:, 0] >= 0) & (moved_inds[:, 0] <= max_inds[0]) & (moved_inds[:, 1] >= 0) & (
-                        moved_inds[:, 1] <= max_inds[1]) & \
+                    moved_inds[:, 1] <= max_inds[1]) & \
                       (moved_inds[:, 2] >= 0) & (moved_inds[:, 2] <= max_inds[2])
             moved_inds_hash = self._grid_hash(moved_inds[mask_in], max_inds)
             end0 = origins[mask_in]
@@ -203,24 +206,22 @@ class GraphDataset(InMemoryDataset):
         node_features = torch.cat((centeroids, sol_center), dim=1)
         return node_features, edges_total
 
-    def indirect_edges(self,edges):
+    def indirect_edges(self, edges):
         edges_swap = edges.detach().clone()
-        edges_swap[0,:] = edges[1,:]
-        edges_swap[1,:] = edges[0,:]
-        edges_total = torch.cat((edges,edges_swap),dim=1)
+        edges_swap[0, :] = edges[1, :]
+        edges_swap[1, :] = edges[0, :]
+        edges_total = torch.cat((edges, edges_swap), dim=1)
         return edges_total
 
     def find_boundary_cells(self, nodes, edges):
         """
         Return a boundary mask (True for boundary cells)
-        :param data: pytorch_geometric
         :return: boundary_mask
         """
-        z_min = torch.min(nodes[:,2])
+        z_min = torch.min(nodes[:, 2])
         count = torch.tensor([(edges == i).sum().item() for i in range(len(nodes))])
-        boundary_mask = (count != 6) * (nodes[:,2] > z_min)
+        boundary_mask = (count != 6) * (nodes[:, 2] > z_min)
         return boundary_mask
-      
 
     def _coord2inds(self, points, d):
         coord_min = torch.min(points, dim=0, keepdim=True).values
@@ -236,7 +237,7 @@ class GraphDataset(InMemoryDataset):
         lookup_table[arr_hash] = torch.arange(arr_hash.shape[0])
         return lookup_table
 
-    def plot_graph(self, points, edge_index,boundary_mask):
+    def plot_graph(self, points, edge_index, boundary_mask):
         points = points.numpy()
         edge_index = edge_index.numpy()
         fig = plt.figure()
@@ -246,9 +247,9 @@ class GraphDataset(InMemoryDataset):
         p2s = points[edge_index[1, :]]
         ls = np.hstack([p1s, p2s]).copy()
         ls = ls.reshape((-1, 2, 3))
-        lc = Line3DCollection(ls, linewidths=0.5, colors='b')       
-        #ax.add_collection(lc)
+        lc = Line3DCollection(ls, linewidths=0.5, colors='b')
+        # ax.add_collection(lc)
         bound_points = points[boundary_mask]
         ax.plot(bound_points[:, 0], bound_points[:, 1], bound_points[:, 2], '.g', markersize=5)
-        
+
         plt.show()
