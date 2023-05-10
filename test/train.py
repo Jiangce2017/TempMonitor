@@ -25,7 +25,7 @@ def r2loss(pred, y):
 class Logger(object):
 
     def __init__(self, path, header):
-        self.log_file = open(path, 'w')
+        self.log_file = open(path, 'a')
         self.logger = csv.writer(self.log_file, delimiter='\t')
 
         self.logger.writerow(header)
@@ -51,10 +51,11 @@ def train():
         data = data.to(device)
         predictions = model(data)
         predictions = predictions[~data.boundary_mask].view(-1)
-        mse_loss = F.mse_loss(predictions, data.y_output, reduction='mean')
+        true_temp = data.y_output[~data.boundary_mask]
+        mse_loss = F.mse_loss(predictions, true_temp, reduction='mean')
         mse_loss.backward()
         optimizer.step()
-        r2_loss = r2loss(predictions, data.y_output)
+        r2_loss = r2loss(predictions, true_temp)
         #print(mse_loss.item())
         train_metrics["mse_loss"].append(mse_loss.item())
         train_metrics["r2_loss"].append(r2_loss.item())
@@ -70,8 +71,9 @@ def test():
         with torch.no_grad():
             predictions = model(data)
             predictions = predictions[~data.boundary_mask].view(-1)
-            mse_loss = F.mse_loss(predictions, data.y_output, reduction='mean')
-            r2_loss = r2loss(predictions, data.y_output)
+            true_temp = data.y_output[~data.boundary_mask]
+            mse_loss = F.mse_loss(predictions, true_temp, reduction='mean')
+            r2_loss = r2loss(predictions, true_temp)
         test_metrics["mse_loss"].append(mse_loss.item())
         test_metrics["r2_loss"].append(r2_loss.item())
     return np.mean(test_metrics["mse_loss"]),np.mean(test_metrics["r2_loss"])
@@ -98,7 +100,7 @@ if __name__ == '__main__':
           
     model = TAGConvNet(4,10)
     #model = MixConv()
-    model_name = 'TAGConvNet'
+    model_name = 'Deep_TAGConvNet'
     device = torch.device('cuda:1')
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)

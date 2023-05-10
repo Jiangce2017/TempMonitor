@@ -90,13 +90,15 @@ class GraphDataset(InMemoryDataset):
                     boundary_mask = self.find_boundary_cells(node_features,edge_index)
                     #boundary_mask_list.append(boundary_mask)
                     #self.plot_graph(node_features[:, :3], edge_index,boundary_mask)
-                    y_output = node_features[~boundary_mask,3]
+                    #y_output = node_features[~boundary_mask,3]
+                    y_output = node_features[:,3]
                     x_input = node_features.detach().clone()
                     #mean_temp = torch.mean(x_input[boundary_mask,3])
-                    x_input[~boundary_mask,3] = 300
+                    x_input[~boundary_mask,3] = 0
                     num_nodes = node_features.shape[0]
                     print("num_nodes: {}".format(num_nodes))
                     print("y_output: {}".format(y_output.shape))
+                    edge_index = self.indirect_edges(edge_index)
                     data = Data(x_input=x_input, edge_index=edge_index, y_output=y_output, boundary_mask= boundary_mask,num_nodes=num_nodes)
                     data_list.append(data)
             else:
@@ -108,13 +110,15 @@ class GraphDataset(InMemoryDataset):
                     boundary_mask = self.find_boundary_cells(node_features,edge_index)
                     #boundary_mask_list.append(boundary_mask)
                     #self.plot_graph(node_features[:, :3], edge_index,boundary_mask)
-                    y_output = node_features[~boundary_mask,3]
+                    #y_output = node_features[~boundary_mask,3]
+                    y_output = node_features[:,3]
                     x_input = node_features.detach().clone()
                     #mean_temp = torch.mean(x_input[boundary_mask,3])
-                    x_input[~boundary_mask,3] = 300
+                    x_input[~boundary_mask,3] = 0
                     num_nodes = node_features.shape[0]
                     print("num_nodes: {}".format(num_nodes))
                     print("y_output: {}".format(y_output.shape))
+                    edge_index = self.indirect_edges(edge_index)
                     data = Data(x_input=x_input, edge_index=edge_index, y_output=y_output, boundary_mask= boundary_mask,num_nodes=num_nodes)
                     data_list.append(data)
             
@@ -195,8 +199,16 @@ class GraphDataset(InMemoryDataset):
             # print(edg.shape)
             edges.append(edg)
         edges_total = torch.cat(edges, dim=1)
+
         node_features = torch.cat((centeroids, sol_center), dim=1)
         return node_features, edges_total
+
+    def indirect_edges(self,edges):
+        edges_swap = edges.detach().clone()
+        edges_swap[0,:] = edges[1,:]
+        edges_swap[1,:] = edges[0,:]
+        edges_total = torch.cat((edges,edges_swap),dim=1)
+        return edges_total
 
     def find_boundary_cells(self, nodes, edges):
         """
