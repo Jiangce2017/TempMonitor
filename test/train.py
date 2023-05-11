@@ -1,8 +1,9 @@
 ### train the model
+import os
+import os.path as osp
 import torch
 import numpy as np
 from numpy import linalg as LA
-import os.path as osp
 from torch_geometric.loader import DataLoader
 import torch.nn.functional as F
 import torch_geometric.transforms as T
@@ -10,6 +11,7 @@ from torch.nn import Sequential as Seq, Linear as Lin, ReLU, BatchNorm1d as BN, 
 from torch_geometric.nn import radius, TAGConv, global_max_pool as gmp, knn
 from src.TempMonitor import GraphDataset
 import csv
+from torch.utils.tensorboard import SummaryWriter
 
 # from point_cloud_models import BallConvNet, DynamicEdge, MixConv
 from models import TAGConvNet, MixConv
@@ -117,10 +119,19 @@ if __name__ == '__main__':
     print(exp_name)
     result_path = osp.join('.', 'results')
 
-    train_logger = Logger(
-        osp.join(result_path, exp_name + '_train.log'),
-        ['ep', 'train_mse', 'train_r2', 'test_mse', 'test_r2']
-    )
+    # train_logger = Logger(
+    #     osp.join(result_path, exp_name + '_train.log'),
+    #     ['ep', 'train_mse', 'train_r2', 'test_mse', 'test_r2']
+    # )
+
+    # training logs
+    if not osp.exists(result_path):
+        os.mkdir(result_path)
+    last_train = max([eval(s.split("-")[-1]) for s in os.listdir(result_path)] + [0])
+    current_train = last_train + 1
+    save_dir = osp.join(result_path, exp_name+"-{}".format(current_train))
+    os.makedirs(save_dir)
+    writer = SummaryWriter(save_dir)
 
     cur_ep = 0
     path_model = osp.join(result_path, exp_name + '_checkpoint.pth')
@@ -145,14 +156,22 @@ if __name__ == '__main__':
         if is_best:
             torch.save(state, '%s/%s_checkpoint.pth' % (result_path, exp_name))
 
-        print(exp_name)
+        # print(exp_name)
         # log = 'Epoch: {:03d}, Train_Loss: {:.4f}, Train_Acc: {:.4f}, Test_Acc: {:.4f}'
         log = 'Epoch: {:03d}, Train_MSE_Loss: {:.4f}, Train_R2_loss: {:.4f}, Test_MSE_Loss: {:.4f}, Test_R2: {:.4f}'
         print(log.format(epoch, train_mse_loss, train_r2_loss, test_mse_loss, test_r2_loss))
-        train_logger.log({
-            'ep': epoch,
-            'train_mse': train_mse_loss,
-            'train_r2': train_r2_loss,
-            'test_mse': test_mse_loss,
-            'test_r2': test_r2_loss,
-        })
+        # train_logger.log({
+        #     'ep': epoch,
+        #     'train_mse': train_mse_loss,
+        #     'train_r2': train_r2_loss,
+        #     'test_mse': test_mse_loss,
+        #     'test_r2': test_r2_loss,
+        # })
+        writer.add_scalars(
+            "loss",
+            {"train": train_mse_loss.item()},
+            global_step=epoch * len(train_loader),
+        )
+        writer.add_scalars(
+            "loss", {"test": test_mse_loss.item()}, global_step=epoch * len(train_loader)
+        )
