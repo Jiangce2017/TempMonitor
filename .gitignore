@@ -2,6 +2,9 @@
 test.pt
 training.pt
 
+# results
+events.*
+
 ### VisualStudioCode template
 .vscode/*
 !.vscode/settings.json

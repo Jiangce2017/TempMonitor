@@ -16,6 +16,7 @@ from torch.utils.tensorboard import SummaryWriter
 # from point_cloud_models import BallConvNet, DynamicEdge, MixConv
 from models import TAGConvNet, MixConv
 import warnings
+
 warnings.filterwarnings("ignore")
 
 
@@ -89,7 +90,15 @@ def test():
 
 if __name__ == '__main__':
 
-    dataset_name = 'temp_monitor'
+    # hyper parameters
+    num_hops = 10
+    bz = 8  # training batchsize
+    lr = .001   # learning rate for Adam
+    # scheduler
+    step_size = 20
+    gamma = .5
+
+    dataset_name = 'Temp_Monitor'
     data_path = osp.join('dataset')
     # pre_transform, transform = T.NormalizeScale(), T.SamplePoints(1024)
     train_dataset = GraphDataset(data_path, '10', True)
@@ -100,22 +109,20 @@ if __name__ == '__main__':
     print(len(test_dataset))
     print('Dataset loaded.')
 
-    bz = 8
     train_loader = DataLoader(train_dataset, batch_size=bz, shuffle=True, drop_last=True,
                               num_workers=2)
     test_loader = DataLoader(test_dataset, batch_size=bz, shuffle=True, drop_last=True,
                              num_workers=2)
 
-    model = TAGConvNet(4, 10)
+    model = TAGConvNet(4, K=num_hops)
     # model = MixConv()
     model_name = 'Deep_TAGConvNet'
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
 
-    exp_name = dataset_name + model_name
-    num_epochs = 2000
+    exp_name = dataset_name + '_' + model_name
     print(exp_name)
     result_path = osp.join('.', 'results')
 
@@ -129,18 +136,19 @@ if __name__ == '__main__':
         os.mkdir(result_path)
     last_train = max([eval(s.split("-")[-1]) for s in os.listdir(result_path)] + [0])
     current_train = last_train + 1
-    save_dir = osp.join(result_path, exp_name+"-{}".format(current_train))
+    save_dir = osp.join(result_path, exp_name + "-{}".format(current_train))
     os.makedirs(save_dir)
     writer = SummaryWriter(save_dir)
 
     cur_ep = 0
-    path_model = osp.join(result_path, exp_name + '_checkpoint.pth')
-    if osp.isfile(path_model):
-        checkpoint = torch.load(path_model)
-        model.load_state_dict(checkpoint['state_dict'])
-        optimizer.load_state_dict(checkpoint['optimizer'])
-        cur_ep = checkpoint['epoch']
+    path_model = osp.join(save_dir, exp_name + '_checkpoint.pth')
+    # if osp.isfile(path_model):
+    #     checkpoint = torch.load(path_model)
+    #     model.load_state_dict(checkpoint['state_dict'])
+    #     optimizer.load_state_dict(checkpoint['optimizer'])
+    #     cur_ep = checkpoint['epoch']
 
+    num_epochs = 200
     best_test_r2 = 0
     for epoch in range(cur_ep, cur_ep + num_epochs):
         train_mse_loss, train_r2_loss = train()
@@ -154,11 +162,11 @@ if __name__ == '__main__':
             'best_test_r2': best_test_r2
         }
         if is_best:
-            torch.save(state, '%s/%s_checkpoint.pth' % (result_path, exp_name))
+            torch.save(state, '%s/%s_checkpoint.pth' % (save_dir, exp_name))
 
         # print(exp_name)
         # log = 'Epoch: {:03d}, Train_Loss: {:.4f}, Train_Acc: {:.4f}, Test_Acc: {:.4f}'
-        log = 'Epoch: {:03d}, Train_MSE_Loss: {:.4f}, Train_R2_loss: {:.4f}, Test_MSE_Loss: {:.4f}, Test_R2: {:.4f}'
+        log = 'Epoch: {:03d}, Train_MSE_Loss: {:.4f}, Train_R2: {:.4f}, Test_MSE_Loss: {:.4f}, Test_R2: {:.4f}'
         print(log.format(epoch, train_mse_loss, train_r2_loss, test_mse_loss, test_r2_loss))
         # train_logger.log({
         #     'ep': epoch,
@@ -173,5 +181,17 @@ if __name__ == '__main__':
             global_step=epoch * len(train_loader),
         )
         writer.add_scalars(
-            "loss", {"test": test_mse_loss.item()}, global_step=epoch * len(train_loader)
+            "r2",
+            {"train": train_r2_loss.item()},
+            global_step=epoch * len(train_loader),
+        )
+        writer.add_scalars(
+            "loss",
+            {"test": test_mse_loss.item()},
+            global_step=epoch * len(train_loader)
+        )
+        writer.add_scalars(
+            "r2",
+            {"test": test_r2_loss.item()},
+            global_step=epoch * len(train_loader),
         )
