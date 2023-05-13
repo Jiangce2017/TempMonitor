@@ -92,7 +92,8 @@ if __name__ == '__main__':
 
     # hyper parameters
     num_hops = 10
-    bz = 8  # training batchsize
+    dropout = .2
+    bz = 32  # training batchsize
     lr = .001   # learning rate for Adam
     # scheduler
     step_size = 20
@@ -114,7 +115,7 @@ if __name__ == '__main__':
     test_loader = DataLoader(test_dataset, batch_size=bz, shuffle=True, drop_last=True,
                              num_workers=2)
 
-    model = TAGConvNet(4, K=num_hops)
+    model = TAGConvNet(4, K=num_hops, dropout=dropout)
     # model = MixConv()
     model_name = 'Deep_TAGConvNet'
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
