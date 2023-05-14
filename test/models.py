@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+import torch.nn as nn
 from torch.nn import Sequential as Seq, Linear as Lin, ReLU, BatchNorm1d as BN, Softmax
 from torch.nn import Dropout, Sigmoid
 from torch_geometric.nn import DynamicEdgeConv, fps, radius, SplineConv, TAGConv, TopKPooling, ChebConv, ARMAConv
@@ -68,8 +69,8 @@ class TAGConvNet(torch.nn.Module):
         super(TAGConvNet, self).__init__()
 
         self.lin0 = Seq(
-            torch.nn.Linear(node_features, num_filters),
-            torch.nn.ReLU(),
+            nn.Linear(node_features, num_filters),
+            nn.ReLU(),
             # BN(512),
         )
 
@@ -77,21 +78,22 @@ class TAGConvNet(torch.nn.Module):
         self.conv2 = TAGConv(num_filters, num_filters, K)
 
         self.lin1 = Seq(
-            torch.nn.Linear(num_filters, num_filters),
-            torch.nn.ReLU(),
+            nn.Linear(num_filters, num_filters),
+            nn.ReLU(),
+            # nn.Dropout(dropout),
             # BN(512),
         )
 
         self.lin2 = Seq(
-            torch.nn.Linear(num_filters, num_filters),
-            torch.nn.ReLU(),
-            Dropout(dropout),
+            nn.Linear(num_filters, num_filters),
+            nn.ReLU(),
+            # nn.Dropout(dropout)
             # BN(512),
         )
 
         self.lin3 = Seq(
-            torch.nn.Linear(num_filters, 1),
-            torch.nn.ReLU(),
+            nn.Linear(num_filters, 1),
+            nn.ReLU(),
             # BN(512),
         )
 

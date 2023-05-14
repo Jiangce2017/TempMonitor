@@ -94,7 +94,7 @@ if __name__ == '__main__':
     num_hops = 10
     dropout = .2
     bz = 32  # training batchsize
-    lr = .001   # learning rate for Adam
+    lr = 5e-3   # learning rate for Adam
     # scheduler
     step_size = 20
     gamma = .5
@@ -163,6 +163,7 @@ if __name__ == '__main__':
             'best_test_r2': best_test_r2
         }
         if is_best:
+            print('Saving...')
             torch.save(state, '%s/%s_checkpoint.pth' % (save_dir, exp_name))
 
         # print(exp_name)

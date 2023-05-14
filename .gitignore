@@ -3,7 +3,7 @@ test.pt
 training.pt
 
 # results
-events.*
+test/results
 
 ### VisualStudioCode template
 .vscode/*
