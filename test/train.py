@@ -96,8 +96,9 @@ if __name__ == '__main__':
     bz = 32  # training batchsize
     lr = 5e-3   # learning rate for Adam
     # scheduler
-    step_size = 20
-    gamma = .5
+    step_size = 100
+    gamma = .5  # Step LR
+    t_max = 100 # Cos LR
 
     dataset_name = 'Temp_Monitor'
     data_path = osp.join('dataset')
@@ -121,7 +122,8 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
+    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=t_max)
 
     exp_name = dataset_name + '_' + model_name
     print(exp_name)
@@ -166,8 +168,6 @@ if __name__ == '__main__':
             print('Saving...')
             torch.save(state, '%s/%s_checkpoint.pth' % (save_dir, exp_name))
 
-        # print(exp_name)
-        # log = 'Epoch: {:03d}, Train_Loss: {:.4f}, Train_Acc: {:.4f}, Test_Acc: {:.4f}'
         log = 'Epoch: {:03d}, Train_MSE_Loss: {:.4f}, Train_R2: {:.4f}, Test_MSE_Loss: {:.4f}, Test_R2: {:.4f}'
         print(log.format(epoch, train_mse_loss, train_r2_loss, test_mse_loss, test_r2_loss))
         # train_logger.log({
