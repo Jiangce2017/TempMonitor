@@ -51,30 +51,34 @@ class Logger(object):
         self.log_file.flush()
 
 
-def train():
+def train(optimizer=None, lr_scheduler=None):
     model.train()
     train_metrics = {"mse_loss": [], "r2_loss": []}
     for batch_i, data in enumerate(train_loader):
-        optimizer.zero_grad()
+        if optimizer:
+            optimizer.zero_grad()
         data = data.to(device)
         predictions = model(data)
         predictions = predictions[~data.boundary_mask].view(-1)
         true_temp = data.y_output[~data.boundary_mask]
         mse_loss = F.mse_loss(predictions, true_temp, reduction='mean')
         mse_loss.backward()
-        optimizer.step()
+        if optimizer:
+            optimizer.step()
         r2_loss = r2loss(predictions, true_temp)
         # print(mse_loss.item())
         train_metrics["mse_loss"].append(mse_loss.item())
         train_metrics["r2_loss"].append(r2_loss.item())
 
+    if lr_scheduler:
+        lr_scheduler.step()
     return np.mean(train_metrics["mse_loss"]), np.mean(train_metrics["r2_loss"])
 
 
 def test():
     model.eval()
     test_metrics = {"mse_loss": [], "r2_loss": []}
-    correct = 0
+    # correct = 0
     for batch_i, data in enumerate(test_loader):
         data = data.to(device)
         with torch.no_grad():
@@ -94,11 +98,11 @@ if __name__ == '__main__':
     num_hops = 10
     dropout = .2
     bz = 32  # training batchsize
-    lr = 5e-3   # learning rate for Adam
+    lr = 3e-3   # learning rate for Adam
     # scheduler
     step_size = 100
     gamma = .5  # Step LR
-    t_max = 100 # Cos LR
+    t_max = 200 # Cos LR
 
     dataset_name = 'Temp_Monitor'
     data_path = osp.join('dataset')
@@ -123,7 +127,7 @@ if __name__ == '__main__':
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=t_max)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=t_max, eta_min=1e-4)
 
     exp_name = dataset_name + '_' + model_name
     print(exp_name)
@@ -154,7 +158,8 @@ if __name__ == '__main__':
     num_epochs = 200
     best_test_r2 = 0
     for epoch in range(cur_ep, cur_ep + num_epochs):
-        train_mse_loss, train_r2_loss = train()
+        # train_mse_loss, train_r2_loss = train(optimizer=optimizer)
+        train_mse_loss, train_r2_loss = train(optimizer=optimizer, lr_scheduler=scheduler)
         test_mse_loss, test_r2_loss = test()
         is_best = test_r2_loss > best_test_r2
         best_test_r2 = max(best_test_r2, test_r2_loss)
