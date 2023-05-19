@@ -101,8 +101,8 @@ if __name__ == '__main__':
     lr = 3e-3   # learning rate for Adam
     # scheduler
     step_size = 100
-    gamma = .5  # Step LR
-    t_max = 200 # Cos LR
+    gamma = .5      # Step LR
+    t_max = 500     # Cos LR
 
     dataset_name = 'Temp_Monitor'
     data_path = osp.join('dataset')
@@ -128,6 +128,7 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=t_max, eta_min=1e-4)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=t_0, eta_min=1e-4)
 
     exp_name = dataset_name + '_' + model_name
     print(exp_name)
@@ -155,7 +156,7 @@ if __name__ == '__main__':
     #     optimizer.load_state_dict(checkpoint['optimizer'])
     #     cur_ep = checkpoint['epoch']
 
-    num_epochs = 200
+    num_epochs = 500
     best_test_r2 = 0
     for epoch in range(cur_ep, cur_ep + num_epochs):
         # train_mse_loss, train_r2_loss = train(optimizer=optimizer)
