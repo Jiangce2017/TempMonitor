@@ -121,14 +121,12 @@ if __name__ == '__main__':
                              num_workers=2)
 
     model = TAGConvNet(4, K=num_hops, dropout=dropout)
-    # model = MixConv()
     model_name = 'Deep_TAGConvNet'
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=t_max, eta_min=1e-4)
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=t_0, eta_min=1e-4)
 
     exp_name = dataset_name + '_' + model_name
     print(exp_name)
