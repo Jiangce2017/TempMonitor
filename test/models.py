@@ -110,7 +110,7 @@ class TAGConvNet(torch.nn.Module):
 
 
 class SplineConvNet(torch.nn.Module):
-    def __init__(self, node_features, classes_num, K=3):
+    def __init__(self, node_features, K=3, dropout=.5):
         super(SplineConvNet, self).__init__()
         self.conv1 = SplineConv(node_features, 128, 3, K)
         self.bn1 = BN(128)
@@ -121,12 +121,12 @@ class SplineConvNet(torch.nn.Module):
             torch.nn.Linear(256, 256),
             torch.nn.ReLU(),
             torch.nn.BatchNorm1d(256),
-            torch.nn.Dropout(0.5),
+            torch.nn.Dropout(dropout),
             torch.nn.Linear(256, 128),
             torch.nn.ReLU(),
             torch.nn.BatchNorm1d(128),
-            torch.nn.Dropout(0.5),
-            torch.nn.Linear(128, classes_num),
+            torch.nn.Dropout(dropout),
+            torch.nn.Linear(128, 1),
         )
 
     def forward(self, data):
