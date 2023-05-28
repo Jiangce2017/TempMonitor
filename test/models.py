@@ -130,10 +130,10 @@ class SplineConvNet(torch.nn.Module):
         )
 
     def forward(self, data):
-        x, edge_index, pseudo, batch = data.x.float(), data.edge_index, data.pseudo, data.batch
-        x1 = F.relu(self.conv1(x, edge_index, pseudo))
+        x, edge_index, batch = data.x_input.float(), data.edge_index, data.batch
+        x1 = F.relu(self.conv1(x, edge_index))
         x1 = self.bn1(x1)
-        x2 = F.relu(self.conv2(x1, edge_index, pseudo))
+        x2 = F.relu(self.conv2(x1, edge_index))
         x2 = self.bn2(x2)
         out = self.lin1(torch.cat([x1, x2], dim=1))
         out = gmp(out, batch)
@@ -142,47 +142,35 @@ class SplineConvNet(torch.nn.Module):
 
 
 class ARMAConvNet(torch.nn.Module):
-    def __init__(self, node_features, classes_num, K=3):
+    def __init__(self, node_features, num_filters=128, K=3, dropout=.5):
         super(ARMAConvNet, self).__init__()
-        self.conv1 = ARMAConv(node_features, 256, 3, K)
+        self.conv1 = ARMAConv(node_features, num_filters, 3, K)
         # self.bn1 = BN(128)
-        self.conv2 = ARMAConv(256, 256, 3, K)
+        self.conv2 = ARMAConv(num_filters, num_filters, 3, K)
         # self.bn2 = BN(128)
 
         self.lin1 = torch.nn.Sequential(
-            torch.nn.Linear(256, 256),
+            torch.nn.Linear(num_filters, num_filters),
             torch.nn.ReLU(),
             # BN(512),
         )
         self.lin2 = torch.nn.Sequential(
-            BN(256),
-            torch.nn.Linear(256, 256),
+            # BN(256),
+            torch.nn.Linear(num_filters, num_filters),
             torch.nn.ReLU(),
-            BN(256),
-            torch.nn.Dropout(0.5)
-        )
-        self.lin3 = torch.nn.Sequential(
-            torch.nn.Linear(256, 256),
-            torch.nn.ReLU(),
-            BN(256),
-            torch.nn.Dropout(0.5),
+            # BN(256),
+            # torch.nn.Dropout(dropout)
         )
         self.output = torch.nn.Sequential(
-            torch.nn.Linear(256, classes_num)
+            torch.nn.Linear(num_filters, 1)
         )
 
     def forward(self, data):
-        x, edge_index, batch, edge_attr = data.x.float(), data.edge_index, data.batch, data.edge_attr.float()
-        x1 = F.relu(self.conv1(x[:, :4], edge_index, edge_attr))
-
+        x, edge_index, batch, edge_attr = data.x_input.float(), data.edge_index, data.batch, data.edge_attr
+        x1 = F.relu(self.conv1(x, edge_index, edge_attr))
         x2 = F.relu(self.conv2(x1, edge_index, edge_attr))
-
         x = self.lin1(x2)
-
-        x = gmp(x, batch)
         x = self.lin2(x)
-
-        x = self.lin3(x)
-
         x = self.output(x)
-        return F.log_softmax(x, dim=-1)
+        # return F.log_softmax(x, dim=-1)
+        return F.relu(x)

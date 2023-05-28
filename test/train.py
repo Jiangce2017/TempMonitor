@@ -14,7 +14,7 @@ import csv
 from torch.utils.tensorboard import SummaryWriter
 
 # from point_cloud_models import BallConvNet, DynamicEdge, MixConv
-from models import TAGConvNet, MixConv
+from models import TAGConvNet, ARMAConvNet
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     num_hops = 10
     dropout = .2
     bz = 32  # training batchsize
-    lr = 3e-3   # learning rate for Adam
+    lr = 5e-3   # learning rate for Adam
     # scheduler
     step_size = 100
     gamma = .5      # Step LR
@@ -120,8 +120,9 @@ if __name__ == '__main__':
     test_loader = DataLoader(test_dataset, batch_size=bz, shuffle=True, drop_last=True,
                              num_workers=2)
 
-    model = TAGConvNet(4, K=num_hops, dropout=dropout)
-    model_name = 'Deep_TAGConvNet'
+    # model = TAGConvNet(4, K=num_hops, dropout=dropout)
+    model = ARMAConvNet(4, dropout=dropout)
+    model_name = 'Deep_ARMAConvNet'
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -154,7 +155,7 @@ if __name__ == '__main__':
     #     optimizer.load_state_dict(checkpoint['optimizer'])
     #     cur_ep = checkpoint['epoch']
 
-    num_epochs = 500
+    num_epochs = 200
     best_test_r2 = 0
     for epoch in range(cur_ep, cur_ep + num_epochs):
         # train_mse_loss, train_r2_loss = train(optimizer=optimizer)
