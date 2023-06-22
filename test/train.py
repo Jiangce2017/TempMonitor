@@ -13,8 +13,7 @@ from src.TempMonitor import GraphDataset
 import csv
 from torch.utils.tensorboard import SummaryWriter
 
-# from point_cloud_models import BallConvNet, DynamicEdge, MixConv
-from models import TAGConvNet, ARMAConvNet
+from models import TAGConvNet, ARMAConvNet, GINConvNet, SGConvNet
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -96,13 +95,11 @@ if __name__ == '__main__':
 
     # hyper parameters
     num_hops = 10
-    dropout = .2
+    dropout = .5
     bz = 32  # training batchsize
-    lr = 5e-3   # learning rate for Adam
+    lr = 9e-3   # learning rate for Adam
     # scheduler
-    step_size = 100
-    gamma = .5      # Step LR
-    t_max = 500     # Cos LR
+    t_max = 200     # Cos LR
 
     dataset_name = 'Temp_Monitor'
     data_path = osp.join('dataset')
@@ -121,12 +118,13 @@ if __name__ == '__main__':
                              num_workers=2)
 
     # model = TAGConvNet(4, K=num_hops, dropout=dropout)
-    model = ARMAConvNet(4, dropout=dropout)
-    model_name = 'Deep_ARMAConvNet'
+    # model = ARMAConvNet(4, dropout=dropout)
+    # model = GINConvNet(4, eps=1e-9, train_eps=True)
+    model = SGConvNet(4, K=num_hops, dropout=dropout)
+    model_name = 'Deep_SGConvNet'
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=t_max, eta_min=1e-4)
 
     exp_name = dataset_name + '_' + model_name

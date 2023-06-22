@@ -3,16 +3,22 @@ import torch.nn.functional as F
 import torch.nn as nn
 from torch.nn import Sequential as Seq, Linear as Lin, ReLU, BatchNorm1d as BN, Softmax
 from torch.nn import Dropout, Sigmoid
-from torch_geometric.nn import DynamicEdgeConv, fps, radius, SplineConv, TAGConv, TopKPooling, ChebConv, ARMAConv
-from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp
+from torch_geometric.nn import DynamicEdgeConv, SplineConv, TAGConv, ARMAConv, GINConv, SGConv
+from torch_geometric.nn import global_mean_pool, global_max_pool as gmp
 from torch_cluster import knn
 
 
 def MLP(channels, batch_norm=True):
-    return Seq(*[
-        Seq(Lin(channels[i - 1], channels[i]), ReLU(), BN(channels[i]))
-        for i in range(1, len(channels))
-    ])
+    if batch_norm:
+        return nn.Sequential(*[
+            nn.Sequential(nn.Linear(channels[i - 1], channels[i]), BN(channels[i]), nn.ReLU(),)
+            for i in range(1, len(channels))
+        ])
+    else:
+        return nn.Sequential(*[
+            nn.Sequential(nn.Linear(channels[i - 1], channels[i]), nn.ReLU(), )
+            for i in range(1, len(channels))
+        ])
 
 
 class MixConv(torch.nn.Module):
@@ -64,7 +70,7 @@ class MixConv(torch.nn.Module):
         return out
 
 
-class TAGConvNet(torch.nn.Module):
+class TAGConvNet(nn.Module):
     def __init__(self, node_features, K=3, num_filters=128, dropout=0.5):
         super(TAGConvNet, self).__init__()
 
@@ -109,39 +115,7 @@ class TAGConvNet(torch.nn.Module):
         return x
 
 
-class SplineConvNet(torch.nn.Module):
-    def __init__(self, node_features, K=3, dropout=.5):
-        super(SplineConvNet, self).__init__()
-        self.conv1 = SplineConv(node_features, 128, 3, K)
-        self.bn1 = BN(128)
-        self.conv2 = SplineConv(128, 128, 3, K)
-        self.bn2 = BN(128)
-        self.lin1 = MLP([256, 256])
-        self.final = torch.nn.Sequential(
-            torch.nn.Linear(256, 256),
-            torch.nn.ReLU(),
-            torch.nn.BatchNorm1d(256),
-            torch.nn.Dropout(dropout),
-            torch.nn.Linear(256, 128),
-            torch.nn.ReLU(),
-            torch.nn.BatchNorm1d(128),
-            torch.nn.Dropout(dropout),
-            torch.nn.Linear(128, 1),
-        )
-
-    def forward(self, data):
-        x, edge_index, batch = data.x_input.float(), data.edge_index, data.batch
-        x1 = F.relu(self.conv1(x, edge_index))
-        x1 = self.bn1(x1)
-        x2 = F.relu(self.conv2(x1, edge_index))
-        x2 = self.bn2(x2)
-        out = self.lin1(torch.cat([x1, x2], dim=1))
-        out = gmp(out, batch)
-        out = self.final(out)
-        return F.log_softmax(out, dim=-1)
-
-
-class ARMAConvNet(torch.nn.Module):
+class ARMAConvNet(nn.Module):
     def __init__(self, node_features, num_filters=128, K=3, dropout=.5):
         super(ARMAConvNet, self).__init__()
         self.conv1 = ARMAConv(node_features, num_filters, 3, K)
@@ -149,19 +123,19 @@ class ARMAConvNet(torch.nn.Module):
         self.conv2 = ARMAConv(num_filters, num_filters, 3, K)
         # self.bn2 = BN(128)
 
-        self.lin1 = torch.nn.Sequential(
+        self.lin1 = nn.Sequential(
             torch.nn.Linear(num_filters, num_filters),
             torch.nn.ReLU(),
             # BN(512),
         )
-        self.lin2 = torch.nn.Sequential(
+        self.lin2 = nn.Sequential(
             # BN(256),
             torch.nn.Linear(num_filters, num_filters),
             torch.nn.ReLU(),
             # BN(256),
             # torch.nn.Dropout(dropout)
         )
-        self.output = torch.nn.Sequential(
+        self.output = nn.Sequential(
             torch.nn.Linear(num_filters, 1)
         )
 
@@ -173,4 +147,76 @@ class ARMAConvNet(torch.nn.Module):
         x = self.lin2(x)
         x = self.output(x)
         # return F.log_softmax(x, dim=-1)
+        return F.relu(x)
+
+
+class GINConvNet(nn.Module):
+    def __init__(self, node_features, hidden_dim=128, eps=0., train_eps=False, dropout=.5):
+        super(GINConvNet, self).__init__()
+        self.conv1 = GINConv(
+            MLP([node_features, hidden_dim * 2, hidden_dim], batch_norm=True), eps, train_eps
+        )
+        self.conv2 = GINConv(
+            MLP([hidden_dim, hidden_dim * 2, hidden_dim], batch_norm=True), eps, train_eps
+        )
+
+        self.lin1 = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+        )
+
+        self.lin2 = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+        )
+
+        self.output = nn.Sequential(
+            nn.Linear(hidden_dim, 1),
+        )
+
+    def forward(self, data):
+        x, edge_index, batch = data.x_input, data.edge_index, data.batch
+        x1 = F.relu(self.conv1(x, edge_index))
+        x2 = F.relu(self.conv2(x1, edge_index))
+        x = self.lin1(x2)
+        x = self.lin2(x)
+        return F.relu(self.output(x))
+
+
+class SGConvNet(nn.Module):
+    def __init__(self, node_features, K=3, hidden_dim=128, dropout=0.5):
+        super(SGConvNet, self).__init__()
+        self.lin0 = nn.Sequential(
+            nn.Linear(node_features, hidden_dim),
+            nn.ReLU(),
+        )
+
+        self.conv1 = SGConv(hidden_dim, hidden_dim, K)
+        self.conv2 = SGConv(hidden_dim, hidden_dim, K)
+
+        self.lin1 = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim),
+            # BN(hidden_dim),
+            nn.ReLU(),
+        )
+
+        self.lin2 = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim),
+            # BN(hidden_dim),
+            nn.ReLU(),
+            # nn.Dropout(dropout)
+        )
+
+        self.lin3 = nn.Sequential(
+            nn.Linear(hidden_dim, 1),
+        )
+
+    def forward(self, data):
+        x, edge_index, batch = data.x_input, data.edge_index, data.batch
+        x = self.lin0(x)
+        x = F.relu(self.conv1(x, edge_index))
+        x = F.relu(self.conv2(x, edge_index))
+        x = self.lin1(x)
+        x = self.lin2(x)
+        x = self.lin3(x)
         return F.relu(x)
