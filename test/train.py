@@ -77,37 +77,61 @@ def test():
         test_metrics["mse_loss"].append(mse_loss.item())
         test_metrics["r2_loss"].append(r2_loss.item())
     return np.mean(test_metrics["mse_loss"]),np.mean(test_metrics["r2_loss"])
+
     
 
 if __name__ == '__main__':
-
-    dataset_name = 'hollow1_bjorn'
     data_path = osp.join('dataset')
-    #pre_transform, transform = T.NormalizeScale(), T.SamplePoints(1024)
-    train_dataset = GraphDataset(data_path, '10', True)
-    #normalizer = train_dataset.normalizer
-    test_dataset = GraphDataset(data_path, '10', False)
+    geo_models = ['hollow_1','hollow_2','hollow_3','hollow_4','hollow_5','townhouse_2','townhouse_3','townhouse_5','townhouse_6','townhouse_7']
+    dataset_name = 'eval_wall_general_data_'
+    train_datasets = []
+    test_datasets = []
+    botton_included = True
+    for geo_name in geo_models:
+        
+        data_root = osp.join(data_path,geo_name)
+        train_dataset = GraphDataset(root=data_root, name=geo_name,train=True, \
+                                     bottom_included=True,sliced_2d=False,bjorn=True)
+        it = iter(train_dataset)
+        data0 = next(it)
+        figure_path = "figures/" + geo_name+"graph_example.png"
+        train_dataset.plot_graph(data0['x_input'][:,:3], data0['edge_index'],data0['boundary_mask'],figure_path)
+        test_dataset = GraphDataset(root=data_root, name=geo_name,train=False, \
+                                     bottom_included=True,sliced_2d=False,bjorn=True)
+        
+        print(len(train_dataset))
+        print(len(test_dataset))
+        print('Dataset loaded.')
+        train_datasets.append(train_dataset)
+        test_datasets.append(test_dataset)
+
+    simu_wall_dataset = GraphDataset(root=osp.join(data_path,'wall'), name='wall',train=True, \
+                                     bottom_included=False,sliced_2d=True,bjorn=False)
     
-    print(len(train_dataset))
-    print(len(test_dataset))
-    print('Dataset loaded.')
-    
+    simu_wall_dataset_test = GraphDataset(root=osp.join(data_path,'wall'), name='wall',train=False, \
+                                     bottom_included=False,sliced_2d=True,bjorn=False)
+    exp_wall_dataset = GraphDataset(root=osp.join(data_path,'exp_wall'),name= 'exp_wall',train=True, \
+                                    bottom_included=False,sliced_2d=True,bjorn=False)
+    #train_datasets.append(simu_wall_dataset)
+    concat_train_dataset = torch.utils.data.ConcatDataset(train_datasets)
+  
     bz = 8
-    train_loader = DataLoader(train_dataset, batch_size=bz, shuffle=True, drop_last=True,
-                                  num_workers=2)
-    test_loader = DataLoader(test_dataset, batch_size=bz, shuffle=True, drop_last=True,
-                                 num_workers=2)
-          
+    train_loader = DataLoader(concat_train_dataset, batch_size=bz, shuffle=True, drop_last=True,
+                                num_workers=2)
+    test_loader = DataLoader(exp_wall_dataset, batch_size=bz, shuffle=True, drop_last=True,
+                                num_workers=2)
+    
+        
     model = TAGConvNet(4,10)
-    #model = MixConv()
     model_name = 'Deep_TAGConvNet'
     device = torch.device('cuda:1')
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    #optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
     
-    exp_name = dataset_name+model_name
-    num_epochs = 2000
+    exp_name = dataset_name+model_name+'with_platform'
+    num_epochs = 50
     print(exp_name)
     result_path = osp.join('.', 'results')
     
