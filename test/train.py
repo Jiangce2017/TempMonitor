@@ -50,6 +50,15 @@ class Logger(object):
         self.log_file.flush()
 
 
+def count_params(net):
+    total_params = 0
+
+    for x in filter(lambda p: p.requires_grad, net.parameters()):
+        total_params += np.prod(x.data.cpu().numpy().shape)
+    print("Total number of params", total_params)
+    print("Total layers", len(list(filter(lambda p: p.requires_grad and len(p.data.size()) > 1, net.parameters()))))
+
+
 def train(optimizer=None, lr_scheduler=None):
     model.train()
     train_metrics = {"mse_loss": [], "r2_loss": []}
@@ -97,7 +106,7 @@ if __name__ == '__main__':
     num_hops = 10
     dropout = .5
     bz = 32  # training batchsize
-    lr = 9e-3   # learning rate for Adam
+    lr = 3e-3   # learning rate for Adam
     # scheduler
     t_max = 200     # Cos LR
 
@@ -118,14 +127,16 @@ if __name__ == '__main__':
                              num_workers=2)
 
     # model = TAGConvNet(4, K=num_hops, dropout=dropout)
-    # model = ARMAConvNet(4, dropout=dropout)
-    # model = GINConvNet(4, eps=1e-9, train_eps=True)
-    model = SGConvNet(4, K=num_hops, dropout=dropout)
-    model_name = 'Deep_SGConvNet'
+    model = ARMAConvNet(4, dropout=dropout)
+    # model = GINConvNet(4)
+    # model = SGConvNet(4, K=num_hops, dropout=dropout)
+    model_name = 'Deep_ARMAConvNet'
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=t_max, eta_min=1e-4)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=t_max, eta_min=1e-4)
+
+    count_params(model)
 
     exp_name = dataset_name + '_' + model_name
     print(exp_name)
@@ -156,8 +167,8 @@ if __name__ == '__main__':
     num_epochs = 200
     best_test_r2 = 0
     for epoch in range(cur_ep, cur_ep + num_epochs):
-        # train_mse_loss, train_r2_loss = train(optimizer=optimizer)
-        train_mse_loss, train_r2_loss = train(optimizer=optimizer, lr_scheduler=scheduler)
+        train_mse_loss, train_r2_loss = train(optimizer=optimizer)
+        # train_mse_loss, train_r2_loss = train(optimizer=optimizer, lr_scheduler=scheduler)
         test_mse_loss, test_r2_loss = test()
         is_best = test_r2_loss > best_test_r2
         best_test_r2 = max(best_test_r2, test_r2_loss)

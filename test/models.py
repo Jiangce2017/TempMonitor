@@ -4,7 +4,7 @@ import torch.nn as nn
 from torch.nn import Sequential as Seq, Linear as Lin, ReLU, BatchNorm1d as BN, Softmax
 from torch.nn import Dropout, Sigmoid
 from torch_geometric.nn import DynamicEdgeConv, SplineConv, TAGConv, ARMAConv, GINConv, SGConv
-from torch_geometric.nn import global_mean_pool, global_max_pool as gmp
+from torch_geometric.nn import global_mean_pool, global_max_pool as gmp, global_add_pool
 from torch_cluster import knn
 
 
@@ -154,32 +154,39 @@ class GINConvNet(nn.Module):
     def __init__(self, node_features, hidden_dim=128, eps=0., train_eps=False, dropout=.5):
         super(GINConvNet, self).__init__()
         self.conv1 = GINConv(
-            MLP([node_features, hidden_dim * 2, hidden_dim], batch_norm=True), eps, train_eps
+            MLP([node_features, hidden_dim, hidden_dim], batch_norm=True), eps, train_eps
         )
         self.conv2 = GINConv(
-            MLP([hidden_dim, hidden_dim * 2, hidden_dim], batch_norm=True), eps, train_eps
+            MLP([hidden_dim, hidden_dim, hidden_dim], batch_norm=True), eps, train_eps
+        )
+
+        self.conv3 = GINConv(
+            MLP([hidden_dim, hidden_dim, hidden_dim], batch_norm=True), eps, train_eps
         )
 
         self.lin1 = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim),
+            nn.Linear(hidden_dim * 3, hidden_dim * 3),
             nn.ReLU(),
-        )
-
-        self.lin2 = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
+            nn.Dropout(dropout),
         )
 
         self.output = nn.Sequential(
-            nn.Linear(hidden_dim, 1),
+            nn.Linear(hidden_dim * 3, 1),
         )
 
     def forward(self, data):
         x, edge_index, batch = data.x_input, data.edge_index, data.batch
         x1 = F.relu(self.conv1(x, edge_index))
         x2 = F.relu(self.conv2(x1, edge_index))
-        x = self.lin1(x2)
-        x = self.lin2(x)
+        x3 = F.relu(self.conv3(x2, edge_index))
+
+        # x1 = global_add_pool(x1, batch)
+        # x2 = global_add_pool(x2, batch)
+        # x3 = global_add_pool(x3, batch)
+
+        x = torch.cat((x1, x2, x3), dim=1)
+
+        x = self.lin1(x)
         return F.relu(self.output(x))
 
 
