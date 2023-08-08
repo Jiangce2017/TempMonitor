@@ -118,6 +118,12 @@ class TAGConvNet(nn.Module):
 class ARMAConvNet(nn.Module):
     def __init__(self, node_features, num_filters=128, K=3, dropout=.5):
         super(ARMAConvNet, self).__init__()
+
+        # self.lin0 = nn.Sequential(
+        #     nn.Linear(node_features, num_filters),
+        #     nn.ReLU(),
+        # )
+
         self.conv1 = ARMAConv(node_features, num_filters, 3, K)
         # self.bn1 = BN(128)
         self.conv2 = ARMAConv(num_filters, num_filters, 3, K)
@@ -128,25 +134,18 @@ class ARMAConvNet(nn.Module):
             torch.nn.ReLU(),
             # BN(512),
         )
-        self.lin2 = nn.Sequential(
-            # BN(256),
-            torch.nn.Linear(num_filters, num_filters),
-            torch.nn.ReLU(),
-            # BN(256),
-            # torch.nn.Dropout(dropout)
-        )
+
         self.output = nn.Sequential(
             torch.nn.Linear(num_filters, 1)
         )
 
     def forward(self, data):
         x, edge_index, batch, edge_attr = data.x_input.float(), data.edge_index, data.batch, data.edge_attr
+        # x = self.lin0(x)
         x1 = F.relu(self.conv1(x, edge_index, edge_attr))
         x2 = F.relu(self.conv2(x1, edge_index, edge_attr))
         x = self.lin1(x2)
-        x = self.lin2(x)
         x = self.output(x)
-        # return F.log_softmax(x, dim=-1)
         return F.relu(x)
 
 
@@ -165,6 +164,12 @@ class GINConvNet(nn.Module):
         )
 
         self.lin1 = nn.Sequential(
+            nn.Linear(hidden_dim * 3, hidden_dim * 3),
+            nn.ReLU(),
+            # nn.Dropout(dropout),
+        )
+
+        self.lin2 = nn.Sequential(
             nn.Linear(hidden_dim * 3, hidden_dim * 3),
             nn.ReLU(),
             nn.Dropout(dropout),
@@ -187,6 +192,7 @@ class GINConvNet(nn.Module):
         x = torch.cat((x1, x2, x3), dim=1)
 
         x = self.lin1(x)
+        x = self.lin2(x)
         return F.relu(self.output(x))
 
 

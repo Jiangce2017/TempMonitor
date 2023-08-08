@@ -74,7 +74,6 @@ def train(optimizer=None, lr_scheduler=None):
         if optimizer:
             optimizer.step()
         r2_loss = r2loss(predictions, true_temp)
-        # print(mse_loss.item())
         train_metrics["mse_loss"].append(mse_loss.item())
         train_metrics["r2_loss"].append(r2_loss.item())
 
@@ -104,7 +103,7 @@ if __name__ == '__main__':
 
     # hyper parameters
     num_hops = 10
-    dropout = .5
+    dropout = .3
     bz = 32  # training batchsize
     lr = 3e-3   # learning rate for Adam
     # scheduler
@@ -127,16 +126,16 @@ if __name__ == '__main__':
                              num_workers=2)
 
     # model = TAGConvNet(4, K=num_hops, dropout=dropout)
-    model = ARMAConvNet(4, dropout=dropout)
-    # model = GINConvNet(4)
+    model = ARMAConvNet(4, num_filters=64, dropout=dropout)
+    # model = GINConvNet(4, hidden_dim=128, dropout=dropout)
     # model = SGConvNet(4, K=num_hops, dropout=dropout)
+
+    count_params(model)
     model_name = 'Deep_ARMAConvNet'
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=t_max, eta_min=1e-4)
-
-    count_params(model)
 
     exp_name = dataset_name + '_' + model_name
     print(exp_name)

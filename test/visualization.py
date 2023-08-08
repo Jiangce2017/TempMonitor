@@ -10,10 +10,10 @@ from src.TempMonitor import GraphDataset
 
 data_path = osp.join('dataset')
 test_dataset = GraphDataset(data_path, '10', False)
-plot_graph = test_dataset[0]
+plot_graph = test_dataset[-1]
 
-path_model = osp.join('.', 'results/Temp_Monitor_Deep_ARMAConvNet-15/Temp_Monitor_Deep_ARMAConvNet_checkpoint.pth')
-model = ARMAConvNet(4)
+path_model = osp.join('.', 'results/Temp_Monitor_Deep_ARMAConvNet-31/Temp_Monitor_Deep_ARMAConvNet_checkpoint.pth')
+model = ARMAConvNet(4, num_filters=64)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
 
 checkpoint = torch.load(path_model)
@@ -42,16 +42,26 @@ cbar1 = fig.colorbar(plot1, ax=ax1, shrink=0.6)
 cbar1.set_ticks([200, 400, 600])
 cbar1.set_ticklabels(['200', '400', '600℃'])
 
-ax2 = plt.subplot(222, projection='3d')
-plot2 = ax2.scatter3D(plot_graph['x_input'][~plot_graph.boundary_mask][:, 0],
-                      plot_graph['x_input'][~plot_graph.boundary_mask][:, 1],
-                      plot_graph['x_input'][~plot_graph.boundary_mask][:, 2],
-                      c=predictions.detach().numpy())
-ax2.view_init(elev=35, azim=225)
-ax2.set_title('Predicted Inner Temperature')
-cbar2 = fig.colorbar(plot2, ax=ax2, shrink=0.6)
-cbar2.set_ticks([200, 400, 600])
-cbar2.set_ticklabels(['200', '400', '600℃'])
+ax2 = plt.axes([0.6, 0.55, 0.3, 0.3])
+plot2 = ax2.scatter(plot_graph['y_output'][~plot_graph.boundary_mask], predictions.detach().numpy(),
+                    s=5)
+true = range(int(min(plot_graph['y_output'][~plot_graph.boundary_mask]).item()) - 50,
+             int(max(plot_graph['y_output'][~plot_graph.boundary_mask]).item()) + 50)
+ax2.plot(true, true)
+ax2.set_title('Predicted vs. Actual Inner Temperature')
+plt.xlabel('Actual Inner Temperature (℃)')
+plt.ylabel('Predicted Inner Temperature (℃)')
+
+# ax2 = plt.subplot(222, projection='3d')
+# plot2 = ax2.scatter3D(plot_graph['x_input'][~plot_graph.boundary_mask][:, 0],
+#                       plot_graph['x_input'][~plot_graph.boundary_mask][:, 1],
+#                       plot_graph['x_input'][~plot_graph.boundary_mask][:, 2],
+#                       c=predictions.detach().numpy())
+# ax2.view_init(elev=35, azim=225)
+# ax2.set_title('Predicted Inner Temperature')
+# cbar2 = fig.colorbar(plot2, ax=ax2, shrink=0.6)
+# cbar2.set_ticks([200, 400, 600])
+# cbar2.set_ticklabels(['200', '400', '600℃'])
 
 ax3 = plt.subplot(223, projection='3d')
 plot3 = ax3.scatter3D(plot_graph['x_input'][~plot_graph.boundary_mask][:, 0],
