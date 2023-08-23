@@ -13,8 +13,7 @@ from src.TempMonitor import GraphDataset
 import csv
 from torch.utils.tensorboard import SummaryWriter
 
-# from point_cloud_models import BallConvNet, DynamicEdge, MixConv
-from models import TAGConvNet, MixConv
+from models import TAGConvNet, ARMAConvNet, GINConvNet, SGConvNet
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -51,6 +50,15 @@ class Logger(object):
         self.log_file.flush()
 
 
+def count_params(net):
+    total_params = 0
+
+    for x in filter(lambda p: p.requires_grad, net.parameters()):
+        total_params += np.prod(x.data.cpu().numpy().shape)
+    print("Total number of params", total_params)
+    print("Total layers", len(list(filter(lambda p: p.requires_grad and len(p.data.size()) > 1, net.parameters()))))
+
+
 def train(optimizer=None, lr_scheduler=None):
     model.train()
     train_metrics = {"mse_loss": [], "r2_loss": []}
@@ -66,7 +74,6 @@ def train(optimizer=None, lr_scheduler=None):
         if optimizer:
             optimizer.step()
         r2_loss = r2loss(predictions, true_temp)
-        # print(mse_loss.item())
         train_metrics["mse_loss"].append(mse_loss.item())
         train_metrics["r2_loss"].append(r2_loss.item())
 
@@ -96,13 +103,11 @@ if __name__ == '__main__':
 
     # hyper parameters
     num_hops = 10
-    dropout = .2
+    dropout = .3
     bz = 32  # training batchsize
     lr = 3e-3   # learning rate for Adam
     # scheduler
-    step_size = 100
-    gamma = .5      # Step LR
-    t_max = 500     # Cos LR
+    t_max = 200     # Cos LR
 
     dataset_name = 'Temp_Monitor'
     data_path = osp.join('dataset')
@@ -120,13 +125,17 @@ if __name__ == '__main__':
     test_loader = DataLoader(test_dataset, batch_size=bz, shuffle=True, drop_last=True,
                              num_workers=2)
 
-    model = TAGConvNet(4, K=num_hops, dropout=dropout)
-    model_name = 'Deep_TAGConvNet'
+    # model = TAGConvNet(4, K=num_hops, dropout=dropout)
+    model = ARMAConvNet(4, num_filters=64, dropout=dropout)
+    # model = GINConvNet(4, hidden_dim=128, dropout=dropout)
+    # model = SGConvNet(4, K=num_hops, dropout=dropout)
+
+    count_params(model)
+    model_name = 'Deep_ARMAConvNet'
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=t_max, eta_min=1e-4)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=t_max, eta_min=1e-4)
 
     exp_name = dataset_name + '_' + model_name
     print(exp_name)
@@ -154,11 +163,11 @@ if __name__ == '__main__':
     #     optimizer.load_state_dict(checkpoint['optimizer'])
     #     cur_ep = checkpoint['epoch']
 
-    num_epochs = 500
+    num_epochs = 200
     best_test_r2 = 0
     for epoch in range(cur_ep, cur_ep + num_epochs):
-        # train_mse_loss, train_r2_loss = train(optimizer=optimizer)
-        train_mse_loss, train_r2_loss = train(optimizer=optimizer, lr_scheduler=scheduler)
+        train_mse_loss, train_r2_loss = train(optimizer=optimizer)
+        # train_mse_loss, train_r2_loss = train(optimizer=optimizer, lr_scheduler=scheduler)
         test_mse_loss, test_r2_loss = test()
         is_best = test_r2_loss > best_test_r2
         best_test_r2 = max(best_test_r2, test_r2_loss)
