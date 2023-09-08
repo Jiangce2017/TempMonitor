@@ -15,6 +15,7 @@ from torch_geometric.data import Data
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from utilities3 import *
+import time
 
 class GraphDataset(InMemoryDataset):
     r"""The ModelNet10/40 datasets from the `"3D ShapeNets: A Deep
@@ -199,6 +200,8 @@ class GraphDataset(InMemoryDataset):
         end_i_frame = np.max(toolpath_idx[toolpath[:,3]<0.002*3])
         print("end i frame: {}".format(end_i_frame))
         for i_frame, frame in enumerate(laser_on_frames[:end_i_frame]):
+            start = time.time()
+
             tool_z = toolpath[i_frame,3]+0.02
             act_mask = (temps[frame] > 50) * (nodes[:,2]<tool_z*1)*(temps[frame] < 1500)
 
@@ -217,16 +220,21 @@ class GraphDataset(InMemoryDataset):
 
             node_features = torch.cat((nodes[act_mask], torch.unsqueeze( temps[frame][act_mask],dim=1)), dim=1)
             boundary_mask = self.find_boundary_cells(node_features,edge_index,self.bottom_included,self.sliced_2d)
+            #boundary_mask = self.find_wall_boundary(node_features)
             y_output = node_features[:,3]
             x_input = node_features.detach().clone()
             x_input[~boundary_mask,3] = 0
             num_nodes = node_features.shape[0]
-            print("num_nodes: {}".format(num_nodes))
-            print("y_output: {}".format(y_output.shape))
-            print("num boud nodes: {}".format(node_features[boundary_mask].shape[0]))
+            #print("num_nodes: {}".format(num_nodes))
+            #print("y_output: {}".format(y_output.shape))
+            #print("num boud nodes: {}".format(node_features[boundary_mask].shape[0]))
             edge_index = self.indirect_edges(edge_index)
             data = Data(x_input=x_input, edge_index=edge_index, y_output=y_output, boundary_mask= boundary_mask,num_nodes=num_nodes)
             data_list.append(data)
+
+            end = time.time()
+            #print("time cost for one frame: {}".format(end-start))
+
             if i_frame % 10 == 0:     
                 figure_path = "figures/" + "exp_wall"+"graph_example.png"
                 self.plot_graph(data['x_input'][:,:3], data['edge_index'],data['boundary_mask'],figure_path)
@@ -281,6 +289,17 @@ class GraphDataset(InMemoryDataset):
         edges_total = torch.cat(edges, dim=1)
 
         return edges_total
+    
+    def find_wall_boundary(self,node_features):
+        pos = node_features[:,:3]
+        pos_min = torch.min(node_features,dim=0).values
+        pos_max = torch.max(node_features,dim=0).values
+        left_bound = pos[:,0] == pos_min[0]
+        right_bound = pos[:,0] == pos_max[0]
+        upper_bound = pos[:,2] == pos_max[2]
+        lower_bound = pos[:,2] == pos_max[2]
+        bound_mask = left_bound+right_bound+upper_bound+lower_bound
+        return bound_mask
 
     def cell2graph(self, path, dx, ratio, bottom_included, sliced_2d=False,bjorn=True):
         # load file
@@ -302,12 +321,13 @@ class GraphDataset(InMemoryDataset):
         # the cells with non-zero temperature are activated cells
         dx = np.min(np.max(np.abs(points[:-1]-points[1:]),axis=1))
         print(dx)
+        print(ratio)
         points = torch.from_numpy(points.astype(np.float32))
-        
+        points[points[:,2]<0,2] = points[points[:,2]<0,2]*ratio
+
         centeroids = torch.mean(points[cells], dim=1)
         if bottom_included:
-            active_mask = (sol_center[:, 0] > 0.1) #& (centeroids[:, 2] > 0)  # remove base
-            points[points[:,2]<0,2] = points[points[:,2]<0,2]*ratio
+            active_mask = (sol_center[:, 0] > 0.1) #& (centeroids[:, 2] > 0)  # remove base     
         else:
             if self.name == 'wall':
                 z_bottom = 0.02
@@ -386,8 +406,8 @@ class GraphDataset(InMemoryDataset):
         else:
             key_number = 6
         count = torch.tensor([(edges == i).sum().item() for i in range(len(nodes))])
-        print("max count: {}".format( torch.max(count)))
-        print("min count: {}".format(torch.min(count)))
+        #print("max count: {}".format( torch.max(count)))
+       #print("min count: {}".format(torch.min(count)))
         if bottom_included:
             boundary_mask = (count != key_number)
         else:
