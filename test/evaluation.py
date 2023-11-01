@@ -37,6 +37,10 @@ matplotlib.rc('font', **font)
 
 csfont = {'fontname':'Times New Roman'}
 
+CB_color_cycle = ['#377eb8', '#ff7f00', '#4daf4a',
+                  '#f781bf', '#a65628', '#984ea3',
+                  '#999999', '#e41a1c', '#dede00']
+
 def r2loss(pred, y):
     #print(pred.shape,y.shape)
     SS_res = torch.sum((pred-y)**2)
@@ -90,6 +94,15 @@ def evaluate(test_loader,geo_type):
 
                 predictions = predictions[~data.boundary_mask*idx].view(-1)
                 true_temp = data.y_output[~data.boundary_mask*idx]
+
+                ### melt-pool mask
+                ## find the hight temp point in prediction
+                #idx_high = torch.argmax(predictions).item()
+                melt_mask = (predictions > 800) + (true_temp > 800)
+
+                predictions[melt_mask] = 0
+                true_temp[melt_mask] = 0
+
                 mse_loss = F.mse_loss(predictions, true_temp, reduction='mean')
                 r2_loss = r2loss(predictions, true_temp)
                 
@@ -100,8 +113,9 @@ def evaluate(test_loader,geo_type):
                 pos = pos[active_mask]
                 if pos.shape[0] > 0:
                     #dx = 0.002
-                    
+                    #print("dx:{}".format(dx))
                     int_coords = coord2inds(pos,dx)
+                    #print(np.max(int_coords))
                     predictions = predictions[active_mask].to('cpu').detach().numpy()
                     true_temp = true_temp[active_mask].to('cpu').detach().numpy()
                     #print(np.max(int_coords,axis=0))
@@ -208,12 +222,12 @@ if __name__ == '__main__':
     #task_name = 'valid_wall_with_all_data'
     #task_name = 'valid_wall_with_simu_wall'
     
-    geo_type = 'not_wall'
+    geo_type = 'not_wall' # wall or not_wall
     train_loader_list, test_loader_list,dataset_name_list = my_dataset_loader(task_name,geo_models,train_datasets,test_datasets)
 
     std_mean_array = np.zeros((len(train_loader_list),2))
 
-    # fig, ax = plt.subplots(2,5)
+    fig, ax = plt.subplots(2,5)
 
 
     for i_model in range(len(train_loader_list)):
@@ -246,7 +260,7 @@ if __name__ == '__main__':
             pred_list,true_list,pos_list,boundary_mask_list = evaluate(test_loader,geo_type)
         
 
-        print("mse_loss:{}, r2_loss:{}".format(mse_loss, r2_loss))
+        #print("mse_loss:{}, r2_loss:{}".format(mse_loss, r2_loss))
 
                 ### calculate the error distribution
         # now determine nice limits by hand:
@@ -309,35 +323,38 @@ if __name__ == '__main__':
 
 
 
-        # binwidth = 1
-        # error_max = np.max(np.abs(errors))
-        # lim = (int(error_max/binwidth) + 1) * binwidth
-        # bins = np.arange(-lim, lim + binwidth, binwidth)
+        binwidth = 1
+        error_max = np.max(np.abs(errors))
+        lim = (int(error_max/binwidth) + 1) * binwidth
+        bins = np.arange(-lim, lim + binwidth, binwidth)
 
-        # i_x = i_model % 5
-        # i_y = i_model // 5
-        # ax[i_y,i_x].hist(errors, bins=bins,color='black')
-        # ax[i_y,i_x].set_ylim([0,20000])
-        # ax[i_y,i_x].set_xlim([-60,60])
-        # ax[i_y,i_x].set_title(str(i_model+1))
-        # ax[i_y,i_x].set_xticks([])
-        # ax[i_y,i_x].set_yticks([])
+        i_x = i_model % 5
+        i_y = i_model // 5
+        ax[i_y,i_x].hist(errors, bins=bins,color=CB_color_cycle[0])
+        ax[i_y,i_x].set_ylim([0,20000])
+        ax[i_y,i_x].set_xlim([-60,60])
+        ax[i_y,i_x].set_title(str(i_model+1))
+        #ax[i_y,i_x].set_xticks([])
+        if i_x != 0:
+            ax[i_y,i_x].set_yticks([])
         #plt.savefig("figures/" + 'valid'+dataset_name+"error_distribution.png")
 
 
-        number_samples = 1
-        columns = 4
-        random_samples = sorted(np.random.randint(0,len(true_u), number_samples))  # Generates 10 ordered samples
-        #random_samples = np.arange(len(true_u)-10,len(true_u))
-        #random_samples = np.arange(0,10)
 
-        fontsize = 60
-        file_name_valid = 'valid'+dataset_name+'test_error_worst'
+        # ##### print voxel figures
+        # number_samples = 10
+        # columns = 4
+        # random_samples = sorted(np.random.randint(0,len(true_u), number_samples))  # Generates 10 ordered samples
+        # #random_samples = np.arange(len(true_u)-10,len(true_u))
+        # #random_samples = np.arange(0,10)
 
-        window_numbers = np.arange(len(true_u))
-        time_steps = np.arange(len(true_u))
-        fig3 = fig2 = plt.figure(figsize=(16*columns, number_samples*10))
-        plot_data(true_u, pred_u, window_numbers, time_steps, random_samples, file_name_valid, fig3, fontsize, worst_error=True)
+        # fontsize = 60
+        # file_name_valid = 'valid'+dataset_name+'test_error_worst'
+
+        # window_numbers = np.arange(len(true_u))
+        # time_steps = np.arange(len(true_u))
+        # fig3 = fig2 = plt.figure(figsize=(16*columns, number_samples*10))
+        # plot_data(true_u, pred_u, window_numbers, time_steps, random_samples, file_name_valid, fig3, fontsize, worst_error=True)
 
 
 
@@ -363,7 +380,8 @@ if __name__ == '__main__':
         # true_u_vec, pred_u_vec = true_u_vec.reshape(-1,1), pred_u_vec.reshape(-1,1)
         # #ax.plot(true_u_vec, LinearRegression().fit(true_u_vec, pred_u_vec).predict(true_u_vec))
         # ax.plot([pred_u_vec.min(), pred_u_vec.max()], [pred_u_vec.min(), pred_u_vec.max()], 'r--', lw=1)
-        # ax.annotate("r-squared = {:.3f}".format(r2_score(true_u_vec, pred_u_vec)),(200,1000))
+        # ax.annotate("r-squared = {:.3f}".format(r2_score(true_u_vec, pred_u_vec)),(200,600))
+        # print(r2_score(true_u_vec, pred_u_vec))
         # plt.savefig("figures/" + 'valid'+dataset_name+"scatter_histogram.png")
 
 
@@ -372,11 +390,11 @@ if __name__ == '__main__':
         # ax.scatter(z_pos, (pred_u_vec-true_u_vec)/true_u_vec,s=0.2 )
         # plt.savefig("figures/" + 'valid'+dataset_name+"z_pos_error.png")
 
-    # plt.subplots_adjust(left=0.1,
-    #                 bottom=0.1,
-    #                 right=0.9,
-    #                 top=0.9,
-    #                 wspace=0.3,
-    #                 hspace=0.4)
-    # plt.savefig("figures/" + 'valid_all'+"error_distribution.png")   
+    plt.subplots_adjust(left=0.1,
+                    bottom=0.1,
+                    right=0.9,
+                    top=0.9,
+                    wspace=0.3,
+                    hspace=0.4)
+    plt.savefig("figures/" + 'valid_all'+"error_distribution.png")   
     # np.savetxt('results/cross_validation_std_mean2.csv',std_mean_array,delimiter=',')

@@ -74,6 +74,10 @@ import pickle
 
 # plt.savefig("figures/" + "wall_2d_plot_5.png")
 
+CB_color_cycle = ['#377eb8', '#ff7f00', '#4daf4a',
+                  '#f781bf', '#a65628', '#984ea3',
+                  '#999999', '#e41a1c', '#dede00']
+
 
 traing_log_dir = osp.join('results')
 total_model_names = ['hollow_1','hollow_2','hollow_3','hollow_4','hollow_5','townhouse_2','townhouse_3','townhouse_5','townhouse_6','townhouse_7']
@@ -131,7 +135,7 @@ n_ep = 50
 task_names = ['valid_wall_with_geo_data','valid_wall_with_simu_wall','valid_wall_with_all_data']
 fig, axes = plt.subplots(2,2)
 fig.figsize = (32,24)
-col_titles2 = ['MSE', 'R2']
+col_titles2 = ['MSE', '$R^2$']
 row_titles2 = ['Training','Validation']
 for ax, col in zip(axes[0], col_titles2):
     ax.set_title(col)
@@ -149,10 +153,10 @@ for i,valid_model_name in enumerate(task_names):
     exp_name = valid_model_name+'_'+model_name+'with_platform'
     file_path = osp.join(traing_log_dir,exp_name+'_train.log')
     df = pd.read_table(file_path)
-    axes[0,0].plot(df['ep'][:n_ep],df['train_mse'][:n_ep],line[i],color='black')
-    axes[0,1].plot(df['ep'][:n_ep],df['train_r2'][:n_ep],line[i],color='black')
-    axes[1,0].plot(df['ep'][:n_ep],df['test_mse'][:n_ep],line[i],color='black')
-    axes[1,1].plot(df['ep'][:n_ep],df['test_r2'][:n_ep],line[i],color='black')
+    axes[0,0].plot(df['ep'][:n_ep],df['train_mse'][:n_ep],line[i],color=CB_color_cycle[0])
+    axes[0,1].plot(df['ep'][:n_ep],df['train_r2'][:n_ep],line[i],color=CB_color_cycle[0])
+    axes[1,0].plot(df['ep'][:n_ep],df['test_mse'][:n_ep],line[i],color=CB_color_cycle[0])
+    axes[1,1].plot(df['ep'][:n_ep],df['test_r2'][:n_ep],line[i],color=CB_color_cycle[0])
 
 # for i_row in range(2):
 #     for i_col in range(2):

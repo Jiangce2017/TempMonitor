@@ -11,7 +11,7 @@ import pickle
 from matplotlib import cm
 import matplotlib
 
-def matplot_voxels(arr, color_bar_label, title=None, minimum=None, maximum=None, cmap='bwr',subplot=None, fig=None, fontsize=12):
+def matplot_voxels(arr, color_bar_label, title=None, minimum=None, maximum=None, cmap='bwr',subplot=None, fig=None, fontsize=12, colorbar=True):
     if subplot == None:
         # Create a new figure
         fig = plt.figure()
@@ -32,12 +32,13 @@ def matplot_voxels(arr, color_bar_label, title=None, minimum=None, maximum=None,
     m = cm.ScalarMappable(cmap=cmap, norm=norm)
     m.set_array([])
 
-    cax = fig.add_axes([ax.get_position().x1 + 0.01, ax.get_position().y0, 0.02, ax.get_position().height])
-    cbar = plt.colorbar(m, cax=cax, aspect=0.5)
-    cbar.ax.tick_params(labelsize=fontsize)
-    cbar.set_label(color_bar_label, fontsize=fontsize)
+    if colorbar:
+        cax = fig.add_axes([ax.get_position().x1 + 0.01, ax.get_position().y0, 0.02, ax.get_position().height])
+        cbar = plt.colorbar(m, cax=cax, aspect=0.5)
+        cbar.ax.tick_params(labelsize=fontsize)
+        cbar.set_label(color_bar_label, fontsize=fontsize)
     plt.ticklabel_format(style="plain")
-    ax.voxels(arr, edgecolor="k", facecolors=cmap(norm(arr)), alpha=0.5)
+    ax.voxels(arr, edgecolor="None", facecolors=cmap(norm(arr)), alpha=0.5)
     # ax.invert_zaxis()
 
     # Display the plot
@@ -47,7 +48,7 @@ def matplot_voxels(arr, color_bar_label, title=None, minimum=None, maximum=None,
     # ax.tick_params(axis='x', labelsize=fontsize)
     # ax.tick_params(axis='y', labelsize=fontsize)
     # ax.tick_params(axis='z', labelsize=fontsize)
-
+    ax.set_axis_off()
 
     # Hide grid lines
     ax.grid(False)
@@ -95,7 +96,7 @@ def plot_data(true, prediction, windows, time_steps, sample_indices, file_name, 
         # Plot the True Sample
         count += 1
         ax1, fig1 = matplot_voxels(u_true_sample, "Temperature",title=title1, subplot=(number_samples, columns, count), fig=fig,
-                                   fontsize=fontsize)
+                                   fontsize=fontsize,colorbar=True)
         # ax1.text(-18, -18, 4,
         #          "Sample: " + str(index) + "\nTime step: " + str(time_step_sample) + "\nWindow: " + str(window_sample),
         #          verticalalignment='center', fontsize=fontsize)
@@ -106,14 +107,15 @@ def plot_data(true, prediction, windows, time_steps, sample_indices, file_name, 
         # Plot the predicted sample
         count += 1
         ax2, fig2 = matplot_voxels(u_pred_sample, "Temperature",title=title2, subplot=(number_samples, columns, count), fig=fig,
-                                   fontsize=fontsize)
+                                   fontsize=fontsize,colorbar=True)
 
         # Plot Difference
         #error = u_true_sample - u_pred_sample
         error = u_pred_sample - u_true_sample
         count += 1
         max_err = np.max(np.abs(error))
-        ax3, fig3 = matplot_voxels(error, "Temperature", title=title3,minimum=-max_err, maximum=max_err, subplot=(number_samples, columns, count), fig=fig, fontsize=fontsize)
+        ax3, fig3 = matplot_voxels(error, "Temperature", title=title3,minimum=-max_err, maximum=max_err,cmap='PuOr',\
+                                    subplot=(number_samples, columns, count), fig=fig, fontsize=fontsize,colorbar=True)
         
         
         #c = plt.colorbar()

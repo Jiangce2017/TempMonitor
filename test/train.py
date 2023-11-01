@@ -80,6 +80,7 @@ def train():
 def test():
     model.eval()
     test_metrics = {"mse_loss": [],"r2_loss":[]}
+    test_l_inf = []
     correct = 0
     for batch_i, data in enumerate(test_loader):
         data = data.to(device)
@@ -89,9 +90,11 @@ def test():
             true_temp = data.y_output[~data.boundary_mask]
             mse_loss = F.mse_loss(predictions, true_temp, reduction='mean')
             r2_loss = r2loss(predictions, true_temp)
+            l_inf = torch.max(torch.abs(predictions-true_temp))
         test_metrics["mse_loss"].append(mse_loss.item())
         test_metrics["r2_loss"].append(r2_loss.item())
-    return np.mean(test_metrics["mse_loss"]),np.mean(test_metrics["r2_loss"])
+        test_l_inf.append(l_inf.item())
+    return np.mean(test_metrics["mse_loss"]),np.mean(test_metrics["r2_loss"]),np.mean(test_l_inf)
 
 def my_dataset_loader(task_name,geo_models,train_datasets,test_datasets):
     bz = 8
@@ -215,7 +218,7 @@ if __name__ == '__main__':
     #                             num_workers=2)
     # test_loader = DataLoader(exp_wall_dataset, batch_size=bz, shuffle=True, drop_last=True,
     #                             num_workers=2)
-    task_name = 'valid_wall_with_simu_wall'
+    task_name = 'valid_wall_with_all_data'
     train_loader_list, test_loader_list,dataset_name_list = my_dataset_loader(task_name,geo_models,train_datasets,test_datasets)
     for (train_loader,test_loader,dataset_name)  in zip(train_loader_list, test_loader_list,dataset_name_list):
 
@@ -248,7 +251,7 @@ if __name__ == '__main__':
         best_test_r2 = 0
         for epoch in range(cur_ep,cur_ep+num_epochs): 
             train_mse_loss, train_r2_loss = train()
-            test_mse_loss, test_r2_loss = test()
+            test_mse_loss, test_r2_loss, test_l_inf = test()
             is_best = test_r2_loss > best_test_r2
             best_test_r2 = max(best_test_r2, test_r2_loss)
             state = {
@@ -262,8 +265,8 @@ if __name__ == '__main__':
 
             print(exp_name)
             #log = 'Epoch: {:03d}, Train_Loss: {:.4f}, Train_Acc: {:.4f}, Test_Acc: {:.4f}'
-            log = 'Epoch: {:03d}, Train_MSE_Loss: {:.4f}, Train_R2_loss: {:.4f}, Test_MSE_Loss: {:.4f}, Test_R2: {:.4f}'
-            print(log.format(epoch, train_mse_loss,train_r2_loss, test_mse_loss, test_r2_loss))
+            log = 'Epoch: {:03d}, Train_MSE_Loss: {:.4f}, Train_R2_loss: {:.4f}, Test_MSE_Loss: {:.4f}, Test_R2: {:.4f}, Test_L_inf: {:.4f}'
+            print(log.format(epoch, train_mse_loss,train_r2_loss, test_mse_loss, test_r2_loss, test_l_inf))
             train_logger.log({
                 'ep': epoch,             
                 'train_mse': train_mse_loss,
